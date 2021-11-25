@@ -4,6 +4,14 @@
  * session persistence, api calls, and more.
  * */
 const Alexa = require('ask-sdk-core');
+let current = 0;
+let loseStr = 'I’m sorry, the correct response was '; 
+let loseStrEnd = 'You lose! Thanks for playing Fizz Buzz. For another great Alexa game, check out Song Quiz!';
+const keywords = {
+    FIZZ : "fizz",
+    BUZZ : "buzz",
+    FIZZBUZZ : "fizzbuzz"
+}
 
 // HELPER FUNCTIONS //
 function getSlotValues(slots){
@@ -17,6 +25,22 @@ function getSlotValues(slots){
     return slotValues; 
 }
 
+function getFizzBuzz(num){
+    if(num % 3 === 0 && num % 5 === 0){
+        return keywords.FIZZBUZZ;
+    } else if(num % 5 === 0){
+        return keywords.BUZZ;
+    } else if(num % 3 === 0){
+        return keywords.FIZZ;
+    } 
+    return num;
+}
+
+function buildIncorrectResponseString(num){
+    let correctRes = getFizzBuzz(current);
+    current = 0;
+    return loseStr + ' "' + correctRes + '". ' + loseStrEnd;
+}
 
 
 // INTENTS //
@@ -25,10 +49,12 @@ const LaunchRequestHandler = {
         return Alexa.getRequestType(handlerInput.requestEnvelope) === 'LaunchRequest';
     },
     handle(handlerInput) {
-        const speakOutput = 'Welcome to Fizz Buzz. We’ll each take turns counting up from one. '+
+        var speakOutput = 'Welcome to Fizz Buzz. We’ll each take turns counting up from one. '+
         'However, you must replace numbers divisible by 3 with the word “fizz” and you must replace numbers divisible by 5 with the word “buzz”. '+
         'If a number is divisible by both 3 and 5, you should instead say “fizz buzz”. If you get one wrong, you lose.';
-
+        
+        speakOutput += ' OK, I’ll start... One.';
+        current = 1;
         return handlerInput.responseBuilder
             .speak(speakOutput)
             .reprompt(speakOutput)
@@ -36,8 +62,10 @@ const LaunchRequestHandler = {
     }
 };
 
+
+
 //User input intent for getting next number with FizzBuzz String//
-const UserInputNumber_Handler =  {
+const UserInputNumberHandler =  {
     canHandle(handlerInput) {
         const request = handlerInput.requestEnvelope.request;
         return request.type === 'IntentRequest' && request.intent.name === 'UserInputNumber' ;
@@ -46,14 +74,39 @@ const UserInputNumber_Handler =  {
         const request = handlerInput.requestEnvelope.request;
         const responseBuilder = handlerInput.responseBuilder;
         let sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
-        let say = 'Hello from UserInputNumber.  ';
+        let say = '';
+        
+        if(current === 0){
+            say = "The game is already being ended. Do you want to play again?"
+            return responseBuilder
+            .speak(say)
+            .reprompt('try again, ' + say)
+            .getResponse();
+        }
+        
         let slotValues = getSlotValues(request.intent.slots); 
         
+        //numberic response
         if(slotValues && slotValues.usrNumber.value){
-        say += `The number is ${slotValues.usrNumber.value}`;
+            let num = slotValues.usrNumber.value;
+            let res = getFizzBuzz(num);
+            if(num > current && (num - current) === 1 && !isNaN(res)){
+                current++;
+                say = getFizzBuzz(++current).toString();
+            } else{
+                say = buildIncorrectResponseString(++current);
+            }
         }
+        
+        //word response
         if(slotValues && slotValues.fb.value){
-        say += `The word is ${slotValues.fb.value}`;
+            let word = slotValues.fb.value;
+            let res = getFizzBuzz(++current);
+            if(word === res){
+                say = getFizzBuzz(++current).toString();
+            } else {
+                say = buildIncorrectResponseString(current);
+            }
         }
 
         return responseBuilder
@@ -61,6 +114,31 @@ const UserInputNumber_Handler =  {
             .reprompt('try again, ' + say)
             .getResponse();
     },
+};
+
+const YesIntentHandler = {
+    canHandle(handlerInput) {
+        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest'
+            && Alexa.getIntentName(handlerInput.requestEnvelope) === 'AMAZON.YesIntent';
+    },
+    handle(handlerInput) {
+        const request = handlerInput.requestEnvelope.request;
+        const responseBuilder = handlerInput.responseBuilder;
+        let sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
+        
+        let speakOutput = '';
+        if(current===0){
+            current = 1;
+            speakOutput += ' OK, let’s start it again.  I’ll start... One.';
+        } else {
+            speakOutput += 'I don\'t know what to do with that. Please continue the game';
+        }
+
+        return handlerInput.responseBuilder
+            .speak(speakOutput)
+            .reprompt(speakOutput)
+            .getResponse();
+    }
 };
 
 
@@ -189,7 +267,8 @@ const ErrorHandler = {
 exports.handler = Alexa.SkillBuilders.custom()
     .addRequestHandlers(
         LaunchRequestHandler,
-        UserInputNumber_Handler,
+        UserInputNumberHandler,
+        YesIntentHandler,
         HelloWorldIntentHandler,
         HelpIntentHandler,
         CancelAndStopIntentHandler,
