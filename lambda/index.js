@@ -69,6 +69,11 @@ const LaunchRequestHandler = {
         speakOutput += ' OK, I’ll start... One.';
         current = 1;
         lastWord = speakOutput;
+        
+        const attributes = handlerInput.attributesManager.getSessionAttributes();
+        attributes.lastResult = speakOutput;
+        handlerInput.attributesManager.setSessionAttributes(attributes);
+        
         return handlerInput.responseBuilder
             .speak(speakOutput)
             //tried this way so many times, but not working.
@@ -154,7 +159,9 @@ const UserInputNumberHandler =  {
                 speakOutput = buildIncorrectResponseString(current);
             }
         }
-        lastWord = speakOutput;
+        const attributes = handlerInput.attributesManager.getSessionAttributes();
+        attributes.lastResult = speakOutput;
+        handlerInput.attributesManager.setSessionAttributes(attributes);
         return responseBuilder
             .speak(speakOutput)
             .reprompt('try again, ' + speakOutput)
@@ -182,7 +189,9 @@ const YesIntentHandler = {
         } else {
             speakOutput += 'I don\'t know what to do with that. Please continue the game';
         }
-        lastWord = speakOutput;
+        const attributes = handlerInput.attributesManager.getSessionAttributes();
+        attributes.lastResult = speakOutput;
+        handlerInput.attributesManager.setSessionAttributes(attributes);
         return handlerInput.responseBuilder
             .speak(speakOutput)
             .reprompt(speakOutput)
@@ -196,10 +205,17 @@ const YesIntentHandler = {
 const RepeatIntentHandler = {
     canHandle(handlerInput) {
         return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest'
-            && Alexa.getIntentName(handlerInput.requestEnvelope) === 'RepeatIntent';
+            && Alexa.getIntentName(handlerInput.requestEnvelope) === 'AMAZON.RepeatIntent';
     },
     handle(handlerInput) {
-        const speakOutput = lastWord;
+        let speakOutput = "Sorry, there is nothing to repeat!";
+        
+        const attributes = handlerInput.attributesManager.getSessionAttributes();
+        if(attributes.lastResult){
+            speakOutput = "I said " + attributes.lastResult;
+        }
+        
+        handlerInput.attributesManager.setSessionAttributes(attributes);
         
         return handlerInput.responseBuilder
             .speak(speakOutput)
