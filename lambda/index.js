@@ -5,12 +5,13 @@
  * */
 const Alexa = require('ask-sdk-core');
 let current = 0;
+let lastWord = '';
 let loseStr = 'I’m sorry, the correct response was '; 
-let loseStrEnd = 'You lose! Thanks for playing Fizz Buzz. For another great Alexa game, check out Song Quiz!';
+let loseStrEnd = 'You lose! Thanks for playing Fizz Buzz. For another great Alexa game, check out Song Quiz! Do you want to play fizz buzz again?';
 const keywords = {
     FIZZ : "fizz",
     BUZZ : "buzz",
-    FIZZBUZZ : "fizzbuzz"
+    FIZZBUZZ : "fizz buzz"
 }
 
 // HELPER FUNCTIONS //
@@ -49,12 +50,13 @@ const LaunchRequestHandler = {
         return Alexa.getRequestType(handlerInput.requestEnvelope) === 'LaunchRequest';
     },
     handle(handlerInput) {
-        var speakOutput = 'Welcome to Fizz Buzz. We’ll each take turns counting up from one. '+
+        var speakOutput = 'Welcome to Fizz Buzz. We\'ll each take turns counting up from one. '+
         'However, you must replace numbers divisible by 3 with the word “fizz” and you must replace numbers divisible by 5 with the word “buzz”. '+
         'If a number is divisible by both 3 and 5, you should instead say “fizz buzz”. If you get one wrong, you lose.';
         
         speakOutput += ' OK, I’ll start... One.';
         current = 1;
+        lastWord = speakOutput;
         return handlerInput.responseBuilder
             .speak(speakOutput)
             .reprompt(speakOutput)
@@ -74,13 +76,13 @@ const UserInputNumberHandler =  {
         const request = handlerInput.requestEnvelope.request;
         const responseBuilder = handlerInput.responseBuilder;
         let sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
-        let say = '';
+        let speakOutput = '';
         
         if(current === 0){
-            say = "The game is already being ended. Do you want to play again?"
+            speakOutput = "The game is already being ended. Do you want to play again?"
             return responseBuilder
-            .speak(say)
-            .reprompt('try again, ' + say)
+            .speak(speakOutput)
+            .reprompt('try again, ' + speakOutput)
             .getResponse();
         }
         
@@ -92,9 +94,9 @@ const UserInputNumberHandler =  {
             let res = getFizzBuzz(num);
             if(num > current && (num - current) === 1 && !isNaN(res)){
                 current++;
-                say = getFizzBuzz(++current).toString();
+                speakOutput = getFizzBuzz(++current).toString();
             } else{
-                say = buildIncorrectResponseString(++current);
+                speakOutput = buildIncorrectResponseString(++current);
             }
         }
         
@@ -103,15 +105,15 @@ const UserInputNumberHandler =  {
             let word = slotValues.fb.value;
             let res = getFizzBuzz(++current);
             if(word === res){
-                say = getFizzBuzz(++current).toString();
+                speakOutput = getFizzBuzz(++current).toString();
             } else {
-                say = buildIncorrectResponseString(current);
+                speakOutput = buildIncorrectResponseString(current);
             }
         }
-
+        lastWord = speakOutput;
         return responseBuilder
-            .speak(say)
-            .reprompt('try again, ' + say)
+            .speak(speakOutput)
+            .reprompt('try again, ' + speakOutput)
             .getResponse();
     },
 };
@@ -129,11 +131,11 @@ const YesIntentHandler = {
         let speakOutput = '';
         if(current===0){
             current = 1;
-            speakOutput += ' OK, let’s start it again.  I’ll start... One.';
+            speakOutput += ' OK, let\'s start it again.  I\'ll start... One.';
         } else {
             speakOutput += 'I don\'t know what to do with that. Please continue the game';
         }
-
+        lastWord = speakOutput;
         return handlerInput.responseBuilder
             .speak(speakOutput)
             .reprompt(speakOutput)
@@ -141,21 +143,20 @@ const YesIntentHandler = {
     }
 };
 
-
-const HelloWorldIntentHandler = {
+const RepeatIntentHandler = {
     canHandle(handlerInput) {
         return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest'
-            && Alexa.getIntentName(handlerInput.requestEnvelope) === 'HelloWorldIntent';
+            && Alexa.getIntentName(handlerInput.requestEnvelope) === 'RepeatIntent';
     },
     handle(handlerInput) {
-        const speakOutput = 'Hello World!';
-
+        const speakOutput = lastWord;
+        
         return handlerInput.responseBuilder
             .speak(speakOutput)
-            //.reprompt('add a reprompt if you want to keep the session open for the user to respond')
             .getResponse();
     }
 };
+
 
 const HelpIntentHandler = {
     canHandle(handlerInput) {
@@ -269,7 +270,7 @@ exports.handler = Alexa.SkillBuilders.custom()
         LaunchRequestHandler,
         UserInputNumberHandler,
         YesIntentHandler,
-        HelloWorldIntentHandler,
+        RepeatIntentHandler,
         HelpIntentHandler,
         CancelAndStopIntentHandler,
         FallbackIntentHandler,
